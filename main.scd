@@ -17,7 +17,10 @@ ServerQuit.add(~cleanup);
 ~cleanup.();
 
 // globals
-~path = PathName(thisProcess.nowExecutingPath).parentPath ++ "samples/";
+~samples = ();
+~path = PathName(PathName(thisProcess.nowExecutingPath).parentPath ++ "samples/");
+
+
 
 // handle busses
 s.newBusAllocators;
@@ -25,8 +28,33 @@ s.newBusAllocators;
 ~rbus = Bus.audio(s,1);
 
 ~peavyOut = 3;
+~mainOut= 0;
+
 ~peavyIn = {SoundIn.ar(3)};
 ~drumsIn = {SoundIn.ar(1)};
+
+// handle triggers
+~triggers = Dictionary.new;
+~triggers.add(\low -> {Coyote.kr(LPF.ar(~drumsIn, 100), fastMul: 0.5,thresh: 0.3, minDur: 0.1)});
+~triggers.add(\high -> {Coyote.kr(HPF.ar(~drumsIn, 1000), fastMul: 0.9,thresh: 0.2, minDur: 0.1)});
+~triggers.add(\mid -> {Coyote.kr(BPF.ar(~drumsIn, 500, 0.5), fastMul: 0.9,thresh: 0.2, minDur: 0.1)});
+
+// create gui
+w = Window.new("I catch keystrokes");
+w.view.background_(Color.grey);
+t = StaticText.new(w,Rect(0,0, 200, 30)).resize_(2);
+w.view.keyDownAction = {
+	arg view, char, modifiers, unicode, keycode, key;
+	[char, keycode].postln;
+	t.string = keycode;
+};
+w.front;
+
+w = Window.new("GUI Introduction").layout_(
+    VLayout(
+		HLayout( StaticText().align(\center).string = "hello"; )
+    )
+).front;
 
 // init midi
 MIDIClient.init;
@@ -43,8 +71,37 @@ MIDIdef.cc(\amp, {|val, num| [val,num].postln;}, 64); // could be permanent, if 
 s.waitForBoot({
 
 	// read buffers
+	var subfolders;
+	subfolders = ~path.entries;
+	subfolders.do({
+		arg dir;
+		var bufArray;
+		bufArray = dir.entries.collect({
+			arg file;
+			Buffer.readChannel(s, file.fullPath);
+		});
+		~samples[dir.folderName.asSymbol] = bufArray;
+	});
 
-	// add synth defs
+	// instrument synth defs
+	SynthDef(\looper, {
+		arg out=0, bufnum=0, length=100000, note=40, vol=1, devo=0;
+		var notePow, sigA, sigX, sigY, phasor1, phasor2, env1, env2, deviation, trig;
+		notePow = note - 40;
+		deviation = LFDNoise1.kr(devo);
+		trig = EnvGen.kr(Env.perc(0, 2 * 20000 / SampleRate.ir, 1, 2));
+		sigA = PlayBuf.ar(1, bufnum, BufRateScale.kr(bufnum) * 1.059463.pow(notePow + deviation)) * trig;
+		phasor1 = Phasor.ar(0, BufRateScale.kr(bufnum) * (1 / length) * 1.059463.pow(notePow + deviation), 0, 2);
+		env1 = Fold.ar(phasor1, 0, 1);
+		phasor2 = Wrap.ar(phasor1 + 1, 0, 2);
+		env2 = Fold.ar(phasor2, 0, 1);
+		sigX = BufRd.ar(1, bufnum, MulAdd(phasor1, length, TRand.kr(20000, length, phasor1 - 0.01))) * env1;
+		sigY = BufRd.ar(1, bufnum, MulAdd(phasor2, length, TRand.kr(20000, length, phasor2 - 0.01))) * env2;
+		Out.ar(out, sigA + sigX + sigY)
+	}).add;
+
+
+	// add synth defs for FX
 	SynthDef(\reverb, {
 		arg in=0, mix=1, out=0;
 		var sig, wet;
@@ -72,7 +129,7 @@ s.waitForBoot({
 		~srcgroup = Group.new;
 		// note -> peavy should be dynamically routable to out/reverb/other maybe with pan?
 		~ggroup = Group.after(~srcgroup);
-		~g = Synth(\peavey, [\in, ~peavyBus, \out, ~rbus ]);
+		~g = Synth(\peavey, [\in, ~peavyBus, \out, ~rbus ], ~ggroup);
 		~rgroup = Group.after(~srcgroup);
 		~r = Synth(\reverb, [\in, ~rbus, \out, 0], ~rgroup);
 	};
