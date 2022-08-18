@@ -40,21 +40,28 @@ s.newBusAllocators;
 ~triggers.add(\mid -> {Coyote.kr(BPF.ar(~drumsIn, 500, 0.5), fastMul: 0.9,thresh: 0.2, minDur: 0.1)});
 
 // create gui
-w = Window.new("I catch keystrokes");
-w.view.background_(Color.grey);
-t = StaticText.new(w,Rect(0,0, 200, 30)).resize_(2);
+t = StaticText.new().align_(\center).font = Font("Fira Code", 85);
+t.string = "READY";
+
+w = Window.new("Keystrokes").background_(Color.grey).layout_(
+    VLayout(
+		HLayout( t )
+    )
+).front;
+
 w.view.keyDownAction = {
 	arg view, char, modifiers, unicode, keycode, key;
 	[char, keycode].postln;
+	w.view.background_(Color.white);
 	t.string = keycode;
 };
+w.view.keyUpAction = {
+	arg view, char, modifiers, unicode, keycode, key;
+	[char, keycode].postln;
+	w.view.background_(Color.grey);
+	t.string = "";
+};
 w.front;
-
-w = Window.new("GUI Introduction").layout_(
-    VLayout(
-		HLayout( StaticText().align(\center).string = "hello"; )
-    )
-).front;
 
 // init midi
 MIDIClient.init;
