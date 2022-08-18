@@ -30,10 +30,12 @@ s.newBusAllocators;
 ~peavyOut = 3;
 ~mainOut= 0;
 
+// not sure if this is a smart thing to do...
 ~peavyIn = {SoundIn.ar(3)};
 ~drumsIn = {SoundIn.ar(1)};
 
 // handle triggers
+// not sure if this is a smart thing to do
 ~triggers = Dictionary.new;
 ~triggers.add(\low -> {Coyote.kr(LPF.ar(~drumsIn, 100), fastMul: 0.5,thresh: 0.3, minDur: 0.1)});
 ~triggers.add(\high -> {Coyote.kr(HPF.ar(~drumsIn, 1000), fastMul: 0.9,thresh: 0.2, minDur: 0.1)});
@@ -78,6 +80,7 @@ MIDIdef.cc(\amp, {|val, num| [val,num].postln;}, 64); // could be permanent, if 
 s.waitForBoot({
 
 	// read buffers
+	// not so happy with this, i would prefer to index with numbers
 	var subfolders;
 	subfolders = ~path.entries;
 	subfolders.do({
@@ -89,6 +92,8 @@ s.waitForBoot({
 		});
 		~samples[dir.folderName.asSymbol] = bufArray;
 	});
+
+	~samples[\palm_low].postln;
 
 	// instrument synth defs
 	SynthDef(\looper, {
@@ -139,6 +144,7 @@ s.waitForBoot({
 		~g = Synth(\peavey, [\in, ~peavyBus, \out, ~rbus ], ~ggroup);
 		~rgroup = Group.after(~srcgroup);
 		~r = Synth(\reverb, [\in, ~rbus, \out, 0], ~rgroup);
+		// outputs here can be dynamically set during part changes -> ~g.set(\out, 0) etc.
 	};
 
 	// redo groups when hitting cmd .
@@ -147,3 +153,12 @@ s.waitForBoot({
 
 })
 )
+
+60.midicps
+
+SynthDef(\default, { |out, note=0, rate|
+	Out.ar(out, Line.kr(0.3, 0, 0.5) * SinOsc.ar(rate * 60.midicps) )
+}).add;
+
+Event.makeDefaultSynthDef;
+(rate: [0,4,7,10].midiratio, root: 0).play;
