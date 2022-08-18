@@ -93,9 +93,22 @@ s.waitForBoot({
 		~samples[dir.folderName.asSymbol] = bufArray;
 	});
 
-	~samples[\palm_low].postln;
+	~samples[[\open_power, \palm_power, \full_chords].choose].choose.play;
 
 	// instrument synth defs
+
+	SynthDef.new(\midisampler, {
+		arg amp=1, out=0, open=1, midinote=60, dur=5.5;
+		var sig, buf, rate;
+		rate = (midinote-43).midiratio;
+		buf = Select.kr(Rand(0,9), ~samples[\open_low]);
+		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 0, loop: 0, doneAction: Done.freeSelf);
+		sig = sig * Env.perc(0, (dur + 0.5)).kr(doneAction: Done.freeSelf);
+		sig = sig * amp;
+		Out.ar(out,sig!2);
+	}).add
+
+
 	SynthDef(\looper, {
 		arg out=0, bufnum=0, length=100000, note=40, vol=1, devo=0;
 		var notePow, sigA, sigX, sigY, phasor1, phasor2, env1, env2, deviation, trig;
@@ -161,4 +174,6 @@ SynthDef(\default, { |out, note=0, rate|
 }).add;
 
 Event.makeDefaultSynthDef;
-(rate: [0,4,7,10].midiratio, root: 0).play;
+(instrument: \midisampler, midinote: 40).play;
+(midinote: 40, amp: 1).play;
+
