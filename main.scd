@@ -3,7 +3,7 @@ s.freeAll;
 s = Server.local;
 s.options.numOutputBusChannels_(4);
 s.options.numInputBusChannels_(4);
-s.options.sampleRate_(44100);
+s.options.sampleRate_(48000);
 s.options.memSize_(2.pow(20));
 
 ~cleanup = {ServerBoot.removeAll;
@@ -27,6 +27,7 @@ s.newBusAllocators;
 ~peaveyBus = Bus.audio(s,1);
 ~rbus = Bus.audio(s,1);
 ~shifterBus = Bus.audio(s,1);
+~karplusBus = Bus.audio(s,1);
 
 ~peaveyOut = 2;
 ~mainOut= 0;
@@ -99,7 +100,7 @@ s.waitForBoot({
 		arg amp=1, out=0, open=1, midinote=60, dur=5.5;
 		var sig, buf, rate;
 		rate = (midinote-43).midiratio;
-		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, ~samples[\full_chords]);
+		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, ~samples[\open_low]);
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, doneAction: Done.freeSelf);
 		sig = sig * Env.perc(0, (dur + 0.1), curve: -0.5)
 .kr(doneAction: Done.freeSelf);
@@ -107,6 +108,32 @@ s.waitForBoot({
 		Out.ar(out,sig);
 	}).add;
 
+	SynthDef.new(\ring, {
+		arg amp=1, out=0, open=1, midinote=60, dur=5.5;
+		var sig, buf, rate;
+		rate = (midinote-43).midiratio;
+		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, ~samples[\open_low]);
+		sig = SinOsc.ar(midinote.midicps / 3) * PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, doneAction: Done.freeSelf);
+		sig = sig * Env.perc(0, (dur + 0.5), curve: -0.5)
+.kr(doneAction: Done.freeSelf);
+		sig = sig * amp;
+		Out.ar(out,sig!2);
+	}).add;
+
+	SynthDef.new(\karplus, {
+		arg amp=1, out=0, open=1, midinote=60, dur=5.5;
+		var sig, buf, rate, local;
+		rate = (midinote-43).midiratio;
+		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, ~samples[\open_low]);
+		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, doneAction: Done.freeSelf);
+		local = LocalIn.ar(1);
+		sig = LPF.ar((0.99 * DelayN.ar(local, 0.2, 1 / (2 * midinote.midicps))) + sig, 4000);
+		LocalOut.ar(sig);
+		sig = sig * Env.perc(0, (dur + 0.5), curve: -0.5)
+		.kr(doneAction: Done.freeSelf);
+		sig = sig * amp;
+		Out.ar(out,sig!2);
+	}).add;
 
 
 	SynthDef(\looper, {
@@ -167,7 +194,6 @@ s.waitForBoot({
 		// note -> peavy should be dynamically routable to out/reverb/other maybe with pan?
 		~sgroup = Group.after(~srcgroup);
 		~s = Synth(\shifter, [\in, ~shifterBus, \out, ~rbus], ~sgroup);
-		~s.free;
 
 		~ggroup = Group.after(~srcgroup);
 		~g = Synth(\peavey, [\in, ~peaveyBus, \out, 0], ~ggroup);
@@ -191,10 +217,14 @@ Event.makeDefaultSynthDef;
 (instrument: \midisampler, midinote: 22, amp: 0.8, dur: 10, out: 2).play;
 (midinote: 40, amp: 1).play;
 
-Pdef(\p, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(40,60,1), 40, 40 ,40, 40], inf), \dur, Plprand(0.03,0.08, inf), \out, ~shifterBus)).play;
-Pdef(\e, Pbind(\instrument, \midisampler, \midinote, Pshuf([36,38,40,43,47,52], inf) + 0, \dur, 1, \amp, Phprand(0.8,0.4, inf), \out, ~shifterBus)).play;
+Pdef(\p, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(40,60,1), 40, 40 ,40, 40], inf), \dur, 0.15, \amp, 1 \out, 0)).play;
+Pdef(\f^, Pbind(\instrument, \karplus, \midinote, Pshuf([36,38,40,43,47,52], inf) + 0, \dur, 3, \amp, Phprand(0.8,0.4, inf), \out, ~rbus)).play;
+Pdef(\e, Pbind(\instrument, \midisampler, \midinote, Pshuf([36,38,40,43,47,52], inf) + 0, \dur, 7, \amp, Phprand(0.8,0.4, inf), \out, ~shifterBus)).play;
 Pdef(\p).stop;
 Pdef(\e).stop;
+Pdef(\f).stop;
+
+DelayC
 
 Pdef(\e).asStream.next(()).play;
 
