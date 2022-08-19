@@ -24,15 +24,12 @@ ServerQuit.add(~cleanup);
 
 // handle busses
 s.newBusAllocators;
-~peavyBus = Bus.audio(s,1);
+~peaveyBus = Bus.audio(s,1);
 ~rbus = Bus.audio(s,1);
+~shifterBus = Bus.audio(s,1);
 
-~peavyOut = 3;
+~peaveyOut = 2;
 ~mainOut= 0;
-
-// not sure if this is a smart thing to do...
-~peavyIn = {SoundIn.ar(3)};
-~drumsIn = {SoundIn.ar(1)};
 
 // handle triggers
 // not sure if this is a smart thing to do
@@ -55,6 +52,7 @@ w.view.keyDownAction = {
 	arg view, char, modifiers, unicode, keycode, key;
 	[char, keycode].postln;
 	w.view.background_(Color.white);
+	MIDIIn.doControlAction(1, 1, 64, 127);
 	t.string = keycode;
 };
 w.view.keyUpAction = {
@@ -93,7 +91,7 @@ s.waitForBoot({
 		~samples[dir.folderName.asSymbol] = bufArray;
 	});
 
-	~samples[[\open_power, \palm_power, \full_chords].choose].choose.play;
+	s.sync;
 
 	// instrument synth defs
 
@@ -101,28 +99,30 @@ s.waitForBoot({
 		arg amp=1, out=0, open=1, midinote=60, dur=5.5;
 		var sig, buf, rate;
 		rate = (midinote-43).midiratio;
-		buf = Select.kr(Rand(0,9), ~samples[\open_low]);
-		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 0, loop: 0, doneAction: Done.freeSelf);
-		sig = sig * Env.perc(0, (dur + 0.5)).kr(doneAction: Done.freeSelf);
+		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, ~samples[\full_chords]);
+		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, doneAction: Done.freeSelf);
+		sig = sig * Env.perc(0, (dur + 0.1), curve: -0.5)
+.kr(doneAction: Done.freeSelf);
 		sig = sig * amp;
-		Out.ar(out,sig!2);
-	}).add
+		Out.ar(out,sig);
+	}).add;
+
 
 
 	SynthDef(\looper, {
-		arg out=0, bufnum=0, length=100000, note=40, vol=1, devo=0;
-		var notePow, sigA, sigX, sigY, phasor1, phasor2, env1, env2, deviation, trig;
-		notePow = note - 40;
-		deviation = LFDNoise1.kr(devo);
+		arg out=0, bufnum=0, length=100000, midinote=40, vol=1, devo=0;
+		var rate, sigA, sigX, sigY, phasor1, phasor2, env1, env2, deviation, trig;
+		rate = (midinote-43).midiratio;
+		deviation = LFDNoise1.kr(devo) * (devo / 15);
 		trig = EnvGen.kr(Env.perc(0, 2 * 20000 / SampleRate.ir, 1, 2));
-		sigA = PlayBuf.ar(1, bufnum, BufRateScale.kr(bufnum) * 1.059463.pow(notePow + deviation)) * trig;
-		phasor1 = Phasor.ar(0, BufRateScale.kr(bufnum) * (1 / length) * 1.059463.pow(notePow + deviation), 0, 2);
+		sigA = PlayBuf.ar(1, bufnum, BufRateScale.kr(bufnum) * (rate + deviation));
+		phasor1 = Phasor.ar(0, BufRateScale.kr(bufnum) * (1 / length) * (rate + deviation), 0, 2);
 		env1 = Fold.ar(phasor1, 0, 1);
 		phasor2 = Wrap.ar(phasor1 + 1, 0, 2);
 		env2 = Fold.ar(phasor2, 0, 1);
 		sigX = BufRd.ar(1, bufnum, MulAdd(phasor1, length, TRand.kr(20000, length, phasor1 - 0.01))) * env1;
 		sigY = BufRd.ar(1, bufnum, MulAdd(phasor2, length, TRand.kr(20000, length, phasor2 - 0.01))) * env2;
-		Out.ar(out, sigA + sigX + sigY)
+		Out.ar(out, (sigA + sigX + sigY))
 	}).add;
 
 
@@ -131,19 +131,29 @@ s.waitForBoot({
 		arg in=0, mix=1, out=0;
 		var sig, wet;
 		sig = In.ar(in,1);
-		sig = FreeVerb.ar(sig, mix: mix, room: 0.999, damp: 0.999);
-		sig = LPF.ar(sig, 2000);
+		sig = Pan2.ar(sig, LFDNoise1.kr(0.2, 0.25));
+		sig = FreeVerb2.ar(sig[0], sig[1], mix: mix, room: 0.99, damp: 0.5);
+		sig = [LPF.ar(sig[0], LFDNoise1.kr(0.05, 500, 1500)), LPF.ar(sig[1],LFDNoise1.kr(0.05, 500, 1500))];
 		Out.ar(out,sig);
 
 	}).add;
 
 	SynthDef(\peavey, {
 		arg in=0, mix=1, out=0;
-		var sig, wet;
+		var sig, sog, wet;
 		sig = In.ar(in,1);
-		Out.ar(~peavyOut, sig);
-		sig = ~peavyIn;
-		Out.ar(out,sig);
+		Out.ar(~peaveyOut, sig);
+		sog = SoundIn.ar(2, 1);
+		Out.ar(out,sog);
+
+	}).add;
+
+	SynthDef.new(\shifter, {arg in = 0, amount = 0, out=0; var sig, chain;
+		sig = In.ar(in,1);
+		chain = FFT(LocalBuf(128), sig);
+		chain = PV_BinShift(chain, MouseY.kr(1,10));
+		chain = PV_MagAbove(chain, MouseX.kr(0, 10));
+		Out.ar(out, IFFT(chain));
 
 	}).add;
 
@@ -152,11 +162,15 @@ s.waitForBoot({
 	// add groups
 	~makeNodes = {
 		~srcgroup = Group.new;
-		// note -> peavy should be dynamically routable to out/reverb/other maybe with pan?
-		~ggroup = Group.after(~srcgroup);
-		~g = Synth(\peavey, [\in, ~peavyBus, \out, ~rbus ], ~ggroup);
 		~rgroup = Group.after(~srcgroup);
-		~r = Synth(\reverb, [\in, ~rbus, \out, 0], ~rgroup);
+		~r = Synth(\reverb, [\in, ~rbus, \mix, 0.5, \out, 0], ~rgroup);
+		// note -> peavy should be dynamically routable to out/reverb/other maybe with pan?
+		~sgroup = Group.after(~srcgroup);
+		~s = Synth(\shifter, [\in, ~shifterBus, \out, ~rbus], ~sgroup);
+		~s.free;
+
+		~ggroup = Group.after(~srcgroup);
+		~g = Synth(\peavey, [\in, ~peaveyBus, \out, 0], ~ggroup);
 		// outputs here can be dynamically set during part changes -> ~g.set(\out, 0) etc.
 	};
 
@@ -174,6 +188,26 @@ SynthDef(\default, { |out, note=0, rate|
 }).add;
 
 Event.makeDefaultSynthDef;
-(instrument: \midisampler, midinote: 40).play;
+(instrument: \midisampler, midinote: 22, amp: 0.8, dur: 10, out: 2).play;
 (midinote: 40, amp: 1).play;
 
+Pdef(\p, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(40,60,1), 40, 40 ,40, 40], inf), \dur, Plprand(0.03,0.08, inf), \out, ~shifterBus)).play;
+Pdef(\e, Pbind(\instrument, \midisampler, \midinote, Pshuf([36,38,40,43,47,52], inf) + 0, \dur, 1, \amp, Phprand(0.8,0.4, inf), \out, ~shifterBus)).play;
+Pdef(\p).stop;
+Pdef(\e).stop;
+
+Pdef(\e).asStream.next(()).play;
+
+MIDIdef.cc(\play, {|val, num| "play next".postln; Pdef(\e).asStream.next(()).play;}, 64);
+MIDIdef.cc(\play, {|val, num| "play next".postln; (instrument: \midisampler, midinote: rrand(32,48) + 12, amp: 0.8, dur: 10, out: 2).play;}, 64);
+
+
+x = Synth(\looper, [\bufnum, ~samples[\open_power].choose, \midinote, 43, \devo, 1, \out, ~peaveyBus]);
+x.free;
+
+({
+	"hello".postln;
+	Out.ar(~peavyBus, 0.1 * BPF.ar(Saw.kr(0.01, 0, 0.2, 0.2) * WhiteNoise.ar(rrand(400,410.0).postln),MouseX.kr(rrand(300, 100), maxval: rrand(800, 1400)), rq: MouseY.kr(0.001, 0.2) ))
+}.play);
+
+p.stop;
