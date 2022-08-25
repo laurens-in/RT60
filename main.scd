@@ -299,7 +299,6 @@ s.waitForBoot({
 
 		~ggroup = Group.after(~srcgroup);
 		~g = Synth(\peavey, [\in, ~peaveyBus, \out, 0], ~ggroup);
-		~g.free
 
 		~sgroup = Group.after(~srcgroup);
 		~s = Synth(\shifter, [\in, ~shifterBus, \out, 0], ~sgroup);
