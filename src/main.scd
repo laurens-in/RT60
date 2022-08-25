@@ -52,7 +52,7 @@ s.newBusAllocators;
 ~pitchBus = Bus.control(s,1);
 
 ~peaveyOut = 2;
-~morganIn = 0;
+~morganIn = 3;
 ~mainOut= 0;
 
 // handle triggers
@@ -93,7 +93,7 @@ MIDIIn.doControlAction(1, 1, 64, 127); // spoof a cc, useful for using numpad
 
 MIDIdef.cc(\amp, {|val, num| [val,num].postln;}, 64); // could be permanent, if necessary
 
-
+s.boot;
 
 // boot routine
 

@@ -1,7 +1,7 @@
 (
 ~numPad = Array.new(20);
 ~keys.keys.array.scramble.do({arg val, index;
-	~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, (index+50).nearestInScale(Scale.minor).postln, \out, 0])
+	~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, (index+50).nearestInScale(Scale.minor), \out, 0])
 )});
 )
 
