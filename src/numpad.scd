@@ -1,12 +1,42 @@
 (
+~numPad.do({|synth| synth.free;});
 ~numPad = Array.new(20);
-~keys.keys.array.scramble.do({arg val, index;
-	~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, (index+50).nearestInScale(Scale.minor), \out, 0])
+
+~numPadScale = ;
+~keys.keys.array.do({arg val, index;
+	~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, (index+52).nearestInScale(Scale.minor), \out, ~peaveyBus
+	])
 )});
 )
+
+~keys.size
 
 // free
 ~numPad.do({|synth| synth.free;});
 
 // set output
-~numPad.do({|synth| synth.set(\out, ~peaveyBus);});
+~numPa0d.do({|synth| synth.set(\out, ~lMaxBus);})
++
+
+
+
+
+
+
+57.nearestInScale(Scale.minor).postln;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
