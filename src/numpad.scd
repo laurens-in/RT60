@@ -2,34 +2,31 @@
 ~numPad.do({|synth| synth.free;});
 ~numPad = Array.new(20);
 
-~numPadScale = ;
-~keys.keys.array.do({arg val, index;
-	~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, (index+52).nearestInScale(Scale.minor), \out, ~peaveyBus
-	])
+~numPadScale = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val * 1;}).collect({|val| val + 48;});
+~keyOrder.do({arg val, index;
+	~numPad.add(Synth(\tSamplerKarp, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \out, ~peaveyBus
+	]);
 )});
 )
 
-~keys.size
+(
+~numPad.do({|synth| synth.free;});
+~numPad = Array.new(20);
 
-// free
+~numPadScale = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val * 1;}).collect({|val| val + 36;});
+~keyOrder.do({arg val, index;
+	~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \out, ~peaveyBus
+	]);
+)});
+)
+
 ~numPad.do({|synth| synth.free;});
 
-// set output
-~numPa0d.do({|synth| synth.set(\out, ~lMaxBus);})
-+
 
 
 
 
-
-
-57.nearestInScale(Scale.minor).postln;
-
-
-
-
-
-
+MIDIIn.smpte
 
 
 

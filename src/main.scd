@@ -2,10 +2,10 @@
 s.freeAll;
 s = Server.local;
 s.options.numOutputBusChannels_(4);
-s.options.numInputBusChannels_(4);
+s.options.numInputBusChannels_(3);
 s.options.sampleRate_(41000);
 s.options.memSize_(2.pow(21));
- s.latency = 0.0005;
+ s.latency = 0.05;
 
 ~cleanup = {ServerBoot.removeAll;
 	ServerQuit.removeAll;
@@ -20,21 +20,41 @@ ServerQuit.add(~cleanup);
 
 // globals
 ~keys = Dictionary[
-\7 -> 79,
-\8 -> 80,
-\9 -> 81,
-\minus -> 82,
+\0 -> 90,
+\dot -> 91,
+\1 -> 87,
+\2 -> 88,
+\3 -> 89,
 \4 -> 83,
 \5 -> 84,
 \6 -> 85,
 \plus -> 86,
-\1 -> 87,
-\2 -> 88,
-\3 -> 89,
-\0 -> 90,
-\dot -> 91,
+\7 -> 79,
+\8 -> 80,
+\9 -> 81,
+\minus -> 82,
+\div -> 106,
 \times -> 63,
-\div -> 106];
+];
+
+
+~keyOrder = [
+\0,
+\dot,
+\1,
+\2,
+\3,
+\4,
+\5,
+\6,
+\plus,
+\7,
+\8,
+\9,
+\minus,
+\div,
+\times,
+];
 
 // this is very dumb but it works
 ~samples = [[[],[]],[[],[],[]]];
@@ -49,14 +69,23 @@ s.newBusAllocators;
 ~shifterBus = Bus.audio(s,1);
 ~lMaxBus = Bus.audio(s,1);
 ~karplusBus = Bus.audio(s,1);
+
 ~triggerBus = Bus.control(s,1);
+~inTrigBus = Bus.control(s,1);
+~triggerQuart = Bus.control(s,1);
+~triggerEight = Bus.control(s,1);
+~triggerSixt = Bus.control(s,1);
+
 ~pitchBus = Bus.control(s,1);
 ~midiFaders = Array.fill(8, {Bus.control(s,1)});
 ~midiKnobs = Array.fill(8, {Bus.control(s,1)});
 ~midiSbutton = Array.fill(8, {Bus.control(s,1)});
+~midiMbutton = Array.fill(8, {Bus.control(s,1)});
+~midiRbutton = Array.fill(8, {Bus.control(s,1)});
+~midiTPbutton = Array.fill(5, {Bus.control(s,1)});
 
 ~peaveyOut = 2;
-~morganIn = 3;
+~morganIn = 0;
 ~mainOut= 0;
 
 // create gui
@@ -124,8 +153,8 @@ s.waitForBoot({
 	SynthDef.new(\midisampler, {
 		arg amp=1, out=0, open=1, midinote=60, dur=5.5;
 		var sig, buf, rate;
-		rate = (midinote-43).midiratio;
-		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, ~samples[1][1]);
+		rate = (midinote-43).midiratio + In.kr(~midiFaders[1]).linlin(0,1,0,2) - In.kr(~midiKnobs[1]).linlin(0,1,0,0.5);
+		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, Select.kr(In.kr(~midiTPbutton[1]) + In.kr(~midiTPbutton[2]), Select.kr(In.kr(~midiTPbutton[0]).linlin(0,1,1,0),~samples)));
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, doneAction: Done.freeSelf);
 		sig = sig * Env.perc(0, (dur + 0.1), curve: -0.5)
 .kr(doneAction: Done.freeSelf);
@@ -134,15 +163,14 @@ s.waitForBoot({
 	}).add;
 
 	SynthDef.new(\tSampler, {
-		arg amp=1, out=0, open=1, midinote=60, dur=5.5;
-		var sig, buf, rate, trig, rand;
+		arg amp=1, out=0, open=1, midinote=60, dur=5.5, trig=0;
+		var sig, buf, rate, rand;
 		// rate = (midinote-43).midiratio;
-		trig = Dust.kr(1);
-		rate = TRand.kr(0.5, 1.6,trig);
+		trig = InTrig.kr(~inTrigBus);
+		rate = (midinote - 43).midiratio * In.kr(~midiFaders[1]).linlin(0,1,1,2) * In.kr(~midiKnobs[1]).linlin(0,1,1,0.5);
 		rand = TIRand(0,9,trig);
-		buf = TChoose.kr(trig, TChoose.kr(trig, TChoose.kr(trig, ~samples)));
+		buf = TChoose.kr(trig, Select.kr(In.kr(~midiTPbutton[1]) + In.kr(~midiTPbutton[2]), Select.kr(In.kr(~midiTPbutton[0]).linlin(0,1,1,0),~samples)));
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, trigger: trig);
-		sig = sig * EnvGen.kr(Env.perc(0, (dur + 0.1), curve: -0.5), gate: trig);
 		sig = sig * amp;
 		Out.ar(out,sig);
 	}).add;
@@ -165,11 +193,26 @@ s.waitForBoot({
 		var sig, buf, rate, trig, rand;
 		trig = KeyState.kr(trigIn, 0, 1, 0);
 		// rate = TRand.kr(0.5, 2.6,trig);
-		rate = (midinote - 43).midiratio;
-		rand = TIRand(0,9,trig);
-		buf = TChoose.kr(trig,  ~samples[1][0]);
+		rate = (midinote - 43).midiratio + In.kr(~midiFaders[1]).linlin(0,1,0,2) - In.kr(~midiKnobs[1]).linlin(0,1,0,0.5);
+		buf = TChoose.kr(trig, Select.kr(In.kr(~midiTPbutton[1]) + In.kr(~midiTPbutton[2]), Select.kr(In.kr(~midiTPbutton[0]).linlin(0,1,1,0),~samples)));
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, trigger: trig);
 		sig = sig * EnvGen.kr(Env.asr(0.01,1,0.25), gate: trig);
+		sig = sig * amp;
+		Out.ar(out,sig);
+	}).add;
+
+			SynthDef.new(\tSamplerKarp, {
+		arg trigIn=0, amp=1, out=0, open=1, midinote=60, dur=5.5;
+		var sig, buf, rate, trig, rand, local;
+		trig = KeyState.kr(trigIn, 0, 1, 0);
+		// rate = TRand.kr(0.5, 2.6,trig);
+		rate = (midinote - 43).midiratio + In.kr(~midiFaders[1]).linlin(0,1,0,2) - In.kr(~midiKnobs[1]).linlin(0,1,0,0.5);
+		buf = TChoose.kr(trig, Select.kr(In.kr(~midiTPbutton[1]) + In.kr(~midiTPbutton[2]), Select.kr(In.kr(~midiTPbutton[0]).linlin(0,1,1,0),~samples)));
+		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, trigger: trig);
+		sig = sig * EnvGen.kr(Env.asr(0.01,1,0.25), gate: trig);
+		local = LocalIn.ar(1);
+		sig = LPF.ar((0.95 * DelayC.ar(local, 10, (In.kr(~midiFaders[5]).linexp(0,1,1,50) + In.kr(~midiKnobs[5]).linlin(0,1,0,2.5)) / (2 * midinote.midicps))) + sig, 1000);
+		LocalOut.ar(sig);
 		sig = sig * amp;
 		Out.ar(out,sig);
 	}).add;
@@ -190,22 +233,22 @@ s.waitForBoot({
 	SynthDef.new(\karplus, {
 		arg amp=1, out=0, open=1, midinote=60, dur=5.5, factor=1;
 		var sig, buf, rate, local;
-		rate = (midinote-43).midiratio;
+		rate = (midinote-43).midiratio + In.kr(~midiFaders[1]).linlin(0,1,0,2) - In.kr(~midiKnobs[1]).linlin(0,1,0,0.5);
 		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, ~samples[1][1]);
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, doneAction: Done.freeSelf);
 		local = LocalIn.ar(1);
-		sig = LPF.ar((0.975 * DelayC.ar(local, 10, (In.kr(~midiFaders[5]).linexp(0,1,1,500) + In.kr(~midiKnobs[5]).linlin(0,1,0,30)) / (2 * midinote.midicps))) + sig, 4000);
+		sig = LPF.ar((0.99 * DelayC.ar(local, 10, (In.kr(~midiFaders[5]).linexp(0,1,1,50) + In.kr(~midiKnobs[5]).linlin(0,1,0,2.5)) / (2 * midinote.midicps))) + sig, 4000);
 		LocalOut.ar(sig);
-		sig = sig * Env.perc(0, dur + 0.2, curve: -0.5)
+		sig = sig * Env.perc(0, dur + 0.2, curve: -0.05)
 		.kr(doneAction: Done.freeSelf);
-		sig = sig * amp;
+		sig = sig * amp * 0.5;
 		Out.ar(out,sig);
 	}).add;
 
 
 	SynthDef(\looper, {
-		arg out=0, bufnum=0, length=100000, midinote=40, vol=1, devo=0;
-		var rate, sigA, sigX, sigY, phasor1, phasor2, env1, env2, deviation, trig;
+		arg out=0, bufnum=0, length=100000, midinote=40, vol=1, devo=0, gate=1;
+		var rate, sig, sigA, sigX, sigY, phasor1, phasor2, env1, env2, deviation, trig;
 		rate = (midinote-43).midiratio;
 		deviation = LFDNoise1.kr(devo) * (devo / 15);
 		trig = EnvGen.kr(Env.perc(0, 2 * 20000 / SampleRate.ir, 1, 2));
@@ -216,7 +259,8 @@ s.waitForBoot({
 		env2 = Fold.ar(phasor2, 0, 1);
 		sigX = BufRd.ar(1, bufnum, MulAdd(phasor1, length, TRand.kr(20000, length, phasor1 - 0.01))) * env1;
 		sigY = BufRd.ar(1, bufnum, MulAdd(phasor2, length, TRand.kr(20000, length, phasor2 - 0.01))) * env2;
-		Out.ar(out, (sigA + sigX + sigY)!2)
+		sig = EnvGen.kr(Env.asr, gate, doneAction: Done.freeSelf) * (sigA + sigX + sigY);
+		Out.ar(out, (sig))
 	}).add;
 
 		SynthDef(\karplusL, {
@@ -247,9 +291,9 @@ s.waitForBoot({
 		var sig, wet;
 		sig = In.ar(in,1);
 		sig = Pan2.ar(sig, LFDNoise1.kr(0.2, 0.25));
-		sig = FreeVerb2.ar(sig[0], sig[1], mix: In.kr(~midiFaders[6]), room: 0.99, damp: 0.5);
+		sig = FreeVerb2.ar(sig[0], sig[1], mix: In.kr(~midiFaders[6]), room: 0.8, damp: 0.5);
 		// sig = [LPF.ar(sig[0], LFDNoise1.kr(0.05, 500, 1500)), LPF.ar(sig[1],LFDNoise1.kr(0.05, 500, 1500))];
-		Out.ar(out,Limiter.ar(sig * In.kr(~midiFaders[7]),1,0.001));
+		Out.ar(out,Limiter.ar(sig * (In.kr(~midiFaders[7]) + In.kr(~midiKnobs[7]).linlin(0,1,0,0.2)),1,0.001));
 
 	}).add;
 
@@ -265,23 +309,33 @@ s.waitForBoot({
 
 	SynthDef.new(\shifter, {arg in = 0, amount = 0, out=0; var sig, chain;
 		sig = In.ar(in,1);
-		chain = FFT(LocalBuf(128), sig);
-		chain = PV_BinShift(chain, MouseY.kr(1,10));
-		chain = PV_MagAbove(chain, MouseX.kr(0, 10));
+		chain = FFT(LocalBuf(512), sig);
+		chain = PV_BinShift(chain, In.kr(~midiKnobs[4]).linlin(0,1,1,10));
+		chain = PV_MagAbove(chain, In.kr(~midiFaders[4]).linlin(0,1,0,10));
 		Out.ar(out, IFFT(chain));
 
 	}).add;
 
-	SynthDef.new(\locMax, {arg in = 0, out=0; var sig, chain;
+	SynthDef.new(\locMax, {arg in = 0, out=0; var sig, chain, trig;
 		sig = In.ar(in,1);
 		chain = FFT(LocalBuf(1024), sig);
+		trig = Onsets.kr(chain, 0.1, \wphase);
 		// chain = PV_LocalMax(chain, MouseX.kr(0, 10));
-		chain = PV_MagShift(chain, MouseX.kr(1,0.5));
-		// chain = PV_BinScramble(chain, MouseY.kr , 0.1, 1.0 );
+		chain = PV_MagShift(chain, In.kr(~midiKnobs[4]).linlin(0,1,1,0.1));
+		chain = PV_BinScramble(chain,In.kr(~midiFaders[4]),1,trig);
 		Out.ar(out, IFFT(chain));
 	}).add;
 
 	s.sync;
+
+	~numPad.do({|synth| synth.free;});
+	~numPad = Array.new(20);
+
+	~numPadScale = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val + 36;});
+	~keyOrder.do({arg val, index;
+		~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \out, ~peaveyBus
+		])
+	)});
 
 	// add groups
 	~makeNodes = {
@@ -306,7 +360,17 @@ s.waitForBoot({
 })
 )
 
-x = Synth(\tSampler, [\out, ~peaveyBus]);
+EnvGen.kr(Env.perc(1,2), doneAction: {"hello"});
+
+{SinOsc.ar()}.play
+x = Synth(\tSampler, [\out, 0]);
+~inTrigBus.set(1);
+p = Pmono(\tSampler, \dummy, Pfunc({~inTrigBus.set(1)}), \dur, 0.1, \midinote, Pseq([40, 40, 40, 40, 40, 40], inf) + 12,\amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus).play
+p.stop
+Pmono(p).stop
+
+x.set(\out, 0)
+x.set(\trig, )
 x = Synth(\tSamplerOpen, [\out, ~peaveyBus]);
 x.free;
 
@@ -324,10 +388,10 @@ x.free;
 (instrument: \midisampler, midinote: 45, amp: 1, dur: 10, out: ~lMaxBus).play;
 (midinote: 40, amp: 1).play;
 (
-Pdef(\p, Pbind(\instrument, \midisampler, \midinote, Pwhite(34, 45.2, inf) , \dur, Pwhite(5.3, 9.5, inf) , \amp, 0.8, \out, ~peaveyBus)).play;
+Pdef(\p, Pbind(\instrument, \midisampler, \midinote, Pwhite(34, 45.2, inf) , \dur, 0.2 , \amp, 0.8, \out, ~peaveyBus)).play;
 )
 
-Pdef(\f, Pbind(\instrument, \karplus, \midinote, Pshuf([36,38,40,43,47,52], inf) + 36, \dur, 0.2, \amp, Phprand(0.8,0.4, inf), \factor, 20, \out, ~rbus)).play;
+Pdef(\f, Pbind(\instrument, \karplus, \midinote, Pwhite(32, 70.5, inf) , \dur, Pwhite(0.5, 2.5,inf), \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus)).play;
 Pdef(\e, Pbind(\instrument, \karplus, \midinote, Pshuf([36,38,40,43,47,52], inf) + -20, \dur, 0.5, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus)).play;
 
 Pdef(\p).asStream.next(()).play;

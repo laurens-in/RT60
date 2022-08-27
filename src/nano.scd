@@ -16,10 +16,31 @@ MIDIdef.freeAll;
 		res = if(val==127, {1}, {0});
 		~midiSbutton[index%8].set(res);
 	}, index).permanent_(true);
+});
+(48..55).do({ |index|
+	MIDIdef.cc("mbutton_%".format(index).asSymbol, {|val, num|
+		var res;
+		res = if(val==127, {1}, {0});
+		~midiMbutton[index%8].set(res);
+	}, index).permanent_(true);
+});
+(64..71).do({ |index|
+	MIDIdef.cc("rbutton_%".format(index).asSymbol, {|val, num|
+		var res;
+		res = if(val==127, {1}, {0});
+		~midiRbutton[index%8].set(res);
+	}, index).permanent_(true);
+});
+(40..44).do({ |index|
+	MIDIdef.cc("sbutton_%".format(index).asSymbol, {|val, num|
+		var res;
+		res = if(val==127, {1}, {0});
+		~midiTPbutton[index%8].set(res);
+	}, index).permanent_(true);
 })
 )
 
-{In.kr(~midiSbutton[0]).scope * SinOsc.ar()}.play
+{In.kr(~midiTPbutton[0]).scope}.play
 ~midiSbutton.postln
 
 MIDIdef.cc(\test, {|val,num| [num,val].postln;});
