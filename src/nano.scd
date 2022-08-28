@@ -37,13 +37,28 @@ MIDIdef.freeAll;
 		res = if(val==127, {1}, {0});
 		~midiTPbutton[index%8].set(res);
 	}, index).permanent_(true);
-})
+});
+
+MIDIdef.cc(\numPadMode, { |val|
+	var normal, karplus;
+	if (val==0, {
+		~numPad.do({|synth| synth.free;});
+		~numPad = Array.new(20);
+
+		~numPadScale = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val * 1;}).collect({|val| val + 48;});
+		~keyOrder.do({arg val, index;
+			~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \out, ~peaveyBus
+			]);
+		)});
+	}, {
+		~numPad.do({|synth| synth.free;});
+		~numPad = Array.new(20);
+
+		~numPadScale = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val * 1;}).collect({|val| val + 48;});
+		~keyOrder.do({arg val, index;
+			~numPad.add(Synth(\tSamplerKarp, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \out, ~peaveyBus
+			]);
+		)});
+	})
+}, 32)
 )
-
-{In.kr(~midiTPbutton[0]).scope}.play
-~midiSbutton.postln
-
-MIDIdef.cc(\test, {|val,num| [num,val].postln;});
-
-
-MIDIdef.freeAll;

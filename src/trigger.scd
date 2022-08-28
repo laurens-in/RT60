@@ -15,6 +15,24 @@ Pdef(\sixt, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(43,60,1), 4
 
 
 
+Pdef(\blip, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) + 12 , \dur, 0.5, \amp, Phprand(0.8,0.4, inf), \callback, {|cb| s.sendMsg(\n_free,(cb[\id][0]-1)) }, \out, 0)).play;
+Pdef(\blip).stop;
+
+
+~freeGroup = Group.new(s, \addToHead);
+
+~freeBlop=0;
+Pdef(\blop, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, 1, \amp, Phprand(0.8,0.4, inf), \callback, Pfunc {~freeGroup.set(\gate, 0)}, \group, ~freeGroup, \out, 0)).play;
+Pdef(\blop, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, 1, \amp, Phprand(0.8,0.4, inf), \out, 0)).play;
+Pdef(\blop).stop;
+
+~freeGroup
+
+x = Pdef(\blop).asStream;
+x.next(()).play;
+
+
+
 ~morganPat= Pdef(\morgan).asStream;
 
 ~quart = Pdef(\quart).asStream;
@@ -67,9 +85,6 @@ SynthDef(\beatTracker, {
 	);
 	Out.kr(~triggerSixt, sixt);
 }).play;
-
-
-
 
 // Respond to that reply
 
