@@ -165,7 +165,7 @@ s.waitForBoot({
 		SynthDef.new(\gatesampler, {
 		arg amp=1, out=0, open=1, midinote=60, dur=5.5, gate=1;
 		var sig, buf, rate;
-		rate = (midinote-43).midiratio * In.kr(~midiFaders[1]).linlin(0,1,0,2) * In.kr(~midiKnobs[1]).linlin(0,1,0,0.5);
+		rate = (midinote-43).midiratio * In.kr(~midiFaders[1]).linlin(0,1,1,2) * In.kr(~midiKnobs[1]).linlin(0,1,1,0.5);
 		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, Select.kr(In.kr(~midiTPbutton[1]) + In.kr(~midiTPbutton[2]), Select.kr(In.kr(~midiTPbutton[0]).linlin(0,1,1,0),~samples)));
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0);
 		sig = sig * amp;
@@ -331,7 +331,3 @@ s.waitForBoot({
 
 })
 )
-
-p = Pmono(\tSampler, \dummy, Pfunc({~inTrigBus.set(1)}), \dur, 0.1, \midinote, Pseq([40, 40, 40, 40, 40, 40], inf) + 12,\amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus).play
-p.stop
-Pmono(p).stop
