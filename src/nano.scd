@@ -60,5 +60,13 @@ MIDIdef.cc(\numPadMode, { |val|
 			]);
 		)});
 	})
-}, 32)
+}, 33);
+MIDIdef.cc(\numPadMode, { |val|
+	var synth;
+	val.postln;
+	if (val==127, {~karplusText = Synth(\karplusL, [\midinote, 48, \bufnum, ~samples[1][1][1], \length, 80000, \out, ~peaveyBus]);}, {~karplusText.set(\gate, 0)});
+}, 37);
 )
+
+MIDIdef.cc(\test, {|argo| argo.postln});
+

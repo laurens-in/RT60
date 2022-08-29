@@ -1,37 +1,23 @@
 // add triggers, ideally they can always run but do not always trigger stuff
 
 (
-Pdefn(\notes, Pwrand([Pwhite(38, 48, 1), Pwhite(68, 78,1)], [0.4, 0.6], inf));
+~freeMorgan = Group.new(s, \addToHead);
+~freeQuart = Group.new(s, \addToHead);
+~freeEight = Group.new(s,\addToHead);
+~freeSixt = Group.new(s, \addToHead);
 
-Pdef(\morgan, Pbind(\instrument, \midisampler, \midinote, Pdefn(\notes) , \dur, Pwhite(0.1, 1.5,inf), \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
+a = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val * 1;}).collect({|val| val + 40;});
 
-
-
-Pdef(\quart, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) - 7, \dur, 1, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
-
-Pdef(\eight, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, Pwhite(0.1, 0.2,inf), \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
-
-Pdef(\sixt, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) + 12 , \dur, Pwhite(0.1, 0.2,inf), \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
+Pdefn(\notes, Prand(a, inf));
 
 
+Pdef(\morgan, Pbind(\instrument, \gatesampler, \midinote, Pdefn(\notes), \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
 
-Pdef(\blip, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) + 12 , \dur, 0.5, \amp, Phprand(0.8,0.4, inf), \callback, {|cb| s.sendMsg(\n_free,(cb[\id][0]-1)) }, \out, 0)).play;
-Pdef(\blip).stop;
+Pdef(\quart, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) - 7, \dur, inf, \amp, Phprand(0.8,0.4, inf), \group, ~freeQuart, \callback, Pfunc {~freeQuart.freeAll}, \out, ~peaveyBus));
 
+Pdef(\eight, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, inf, \amp, Phprand(0.8,0.4, inf), \group, ~freeEight, \callback, Pfunc {~freeSixt.freeAll}, \out, ~peaveyBus));
 
-~freeGroup = Group.new(s, \addToHead);
-
-~freeBlop=0;
-Pdef(\blop, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, 1, \amp, Phprand(0.8,0.4, inf), \callback, Pfunc {~freeGroup.set(\gate, 0)}, \group, ~freeGroup, \out, 0)).play;
-Pdef(\blop, Pbind(\instrument, \midisampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, 1, \amp, Phprand(0.8,0.4, inf), \out, 0)).play;
-Pdef(\blop).stop;
-
-~freeGroup
-
-x = Pdef(\blop).asStream;
-x.next(()).play;
-
-
+Pdef(\sixt, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) + 12 , \dur, inf, \amp, Phprand(0.8,0.4, inf), \group, ~freeSixt, \callback, Pfunc {~freeSixt.freeAll}, \out, ~peaveyBus));
 
 ~morganPat= Pdef(\morgan).asStream;
 
@@ -45,8 +31,8 @@ x.next(()).play;
 SynthDef(\triggerer, {
 	var trigger;
 	trigger = Gate.ar(SoundIn.ar(~morganIn), In.kr(~midiSbutton[3]));
-	trigger = FFT(LocalBuf(128),trigger);
-	trigger = Onsets.kr(trigger, In.kr(~midiFaders[3]).linlin(0,1,0,3), \rcomplex);
+	trigger = FFT(LocalBuf(64),trigger);
+	trigger = Onsets.kr(trigger, In.kr(~midiFaders[3]).linlin(0,1,3,0), \rcomplex);
 	SendReply.kr(
 		trigger,
 		cmdName: '/tLow',

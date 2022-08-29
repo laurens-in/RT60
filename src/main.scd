@@ -165,11 +165,11 @@ s.waitForBoot({
 		SynthDef.new(\gatesampler, {
 		arg amp=1, out=0, open=1, midinote=60, dur=5.5, gate=1;
 		var sig, buf, rate;
-		rate = (midinote-43).midiratio + In.kr(~midiFaders[1]).linlin(0,1,0,2) - In.kr(~midiKnobs[1]).linlin(0,1,0,0.5);
+		rate = (midinote-43).midiratio * In.kr(~midiFaders[1]).linlin(0,1,0,2) * In.kr(~midiKnobs[1]).linlin(0,1,0,0.5);
 		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, Select.kr(In.kr(~midiTPbutton[1]) + In.kr(~midiTPbutton[2]), Select.kr(In.kr(~midiTPbutton[0]).linlin(0,1,1,0),~samples)));
-		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, doneAction: Done.freeSelf);
+		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0);
 		sig = sig * amp;
-		sig = EnvGen.kr(Env.asr(releaseTime: 0.1), gate, doneAction: Done.freeSelf) * sig;
+		sig = EnvGen.kr(Env.perc(attackTime: 0, releaseTime: In.kr(~midiKnobs[3]).linlin(0,1,0.1,3)), doneAction: Done.freeSelf) * sig;
 		Out.ar(out,sig);
 	}).add;
 
@@ -209,7 +209,7 @@ s.waitForBoot({
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, trigger: trig);
 		sig = sig * EnvGen.kr(Env.asr(0.01,1,0.25), gate: trig);
 		local = LocalIn.ar(1);
-		sig = LPF.ar((0.95 * DelayC.ar(local, 10, (In.kr(~midiFaders[5]).linexp(0,1,1,50) + In.kr(~midiKnobs[5]).linlin(0,1,0,2.5)) / (2 * midinote.midicps))) + sig, 1000);
+		sig = LPF.ar((0.98 * DelayC.ar(local, 10, (In.kr(~midiFaders[5]).linexp(0,1,1,50) + In.kr(~midiKnobs[5]).linlin(0,1,0,2.5)) / (2 * midinote.midicps))) + sig, 1000);
 		LocalOut.ar(sig);
 		sig = sig * amp;
 		Out.ar(out,sig);
@@ -273,10 +273,10 @@ s.waitForBoot({
 	SynthDef(\reverb, {
 		arg in=0, mix=1, out=0;
 		var sig, wet;
-		sig = In.ar(in,1);
+		sig = In.ar(in,1) * In.kr(~midiFaders[6]);
 		sig = Pan2.ar(sig, LFDNoise1.kr(0.2, 0.25));
-		sig = FreeVerb2.ar(sig[0], sig[1], mix: In.kr(~midiFaders[6]), room: 0.8, damp: 0.5);
-		Out.ar(out,Limiter.ar(sig * (In.kr(~midiFaders[7]) + In.kr(~midiKnobs[7]).linlin(0,1,0,0.2)),1,0.001));
+		sig = FreeVerb2.ar(sig[0], sig[1], mix: In.kr(~midiKnobs[6]), room: 0.8, damp: 0.5);
+		Out.ar(out,Limiter.ar(sig * (In.kr(~midiFaders[7]))));
 
 	}).add;
 
@@ -287,16 +287,6 @@ s.waitForBoot({
 		Out.ar(~peaveyOut, sig);
 		sog = SoundIn.ar(2, 1);
 		Out.ar(out,sog);
-
-	}).add;
-
-	// TODO test if i really need this, my guess NO
-	SynthDef.new(\shifter, {arg in = 0, amount = 0, out=0; var sig, chain;
-		sig = In.ar(in,1);
-		chain = FFT(LocalBuf(512), sig);
-		chain = PV_BinShift(chain, In.kr(~midiKnobs[4]).linlin(0,1,1,10));
-		chain = PV_MagAbove(chain, In.kr(~midiFaders[4]).linlin(0,1,0,10));
-		Out.ar(out, IFFT(chain));
 
 	}).add;
 
@@ -327,12 +317,11 @@ s.waitForBoot({
 		~r = Synth(\reverb, [\in, ~rbus, \mix, 0.2, \out, 0], ~rgroup);
 		// note -> peavy should be dynamically routable to out/reverb/other maybe with pan?
 		~sgroup = Group.after(~srcgroup);
-		~s = Synth(\shifter, [\in, ~shifterBus, \out, ~rbus], ~sgroup);
 		~l = Synth(\locMax, [\in, ~lMaxBus, \out, ~rbus], ~sgroup);
 
 
 		~ggroup = Group.after(~srcgroup);
-		~g = Synth(\peavey, [\in, ~peaveyBus, \out, ~rbus], ~ggroup);
+		~g = Synth(\peavey, [\in, ~peaveyBus, \out, ~lMaxBus], ~ggroup);
 		// outputs here can be dynamically set during part changes -> ~g.set(\out, 0) etc.
 	};
 
