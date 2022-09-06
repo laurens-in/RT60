@@ -13,11 +13,11 @@ Pdefn(\notes, Prand(a, inf));
 
 Pdef(\morgan, Pbind(\instrument, \gatesampler, \midinote, Pdefn(\notes), \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
 
-Pdef(\quart, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) - 7, \dur, inf, \amp, Phprand(0.8,0.4, inf), \group, ~freeQuart, \callback, Pfunc {~freeQuart.freeAll}, \out, ~peaveyBus));
+Pdef(\quart, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) - 7, \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
 
-Pdef(\eight, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, inf, \amp, Phprand(0.8,0.4, inf), \group, ~freeEight, \callback, Pfunc {~freeSixt.freeAll}, \out, ~peaveyBus));
+Pdef(\eight, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
 
-Pdef(\sixt, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) + 12 , \dur, inf, \amp, Phprand(0.8,0.4, inf), \group, ~freeSixt, \callback, Pfunc {~freeSixt.freeAll}, \out, ~peaveyBus));
+Pdef(\sixt, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) + 12 , \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
 
 ~morganPat= Pdef(\morgan).asStream;
 

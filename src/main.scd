@@ -5,7 +5,7 @@ s.options.numOutputBusChannels_(4);
 s.options.numInputBusChannels_(3);
 s.options.sampleRate_(41000);
 s.options.memSize_(2.pow(21));
- s.latency = 0.05;
+s.latency = 0.05;
 
 ~cleanup = {ServerBoot.removeAll;
 	ServerQuit.removeAll;
@@ -20,40 +20,40 @@ ServerQuit.add(~cleanup);
 
 // globals
 ~keys = Dictionary[
-\0 -> 90,
-\dot -> 91,
-\1 -> 87,
-\2 -> 88,
-\3 -> 89,
-\4 -> 83,
-\5 -> 84,
-\6 -> 85,
-\plus -> 86,
-\7 -> 79,
-\8 -> 80,
-\9 -> 81,
-\minus -> 82,
-\div -> 106,
-\times -> 63,
+	\0 -> 90,
+	\dot -> 91,
+	\1 -> 87,
+	\2 -> 88,
+	\3 -> 89,
+	\4 -> 83,
+	\5 -> 84,
+	\6 -> 85,
+	\plus -> 86,
+	\7 -> 79,
+	\8 -> 80,
+	\9 -> 81,
+	\minus -> 82,
+	\div -> 106,
+	\times -> 63,
 ];
 
 
 ~keyOrder = [
-\0,
-\dot,
-\1,
-\2,
-\3,
-\4,
-\5,
-\6,
-\plus,
-\7,
-\8,
-\9,
-\minus,
-\div,
-\times,
+	\0,
+	\dot,
+	\1,
+	\2,
+	\3,
+	\4,
+	\5,
+	\6,
+	\plus,
+	\7,
+	\8,
+	\9,
+	\minus,
+	\div,
+	\times,
 ];
 
 // this is very dumb but it works
@@ -93,9 +93,9 @@ t = StaticText.new().align_(\center).font = Font("Fira Code", 85);
 t.string = "READY";
 
 w = Window.new("Keystrokes").background_(Color.grey).layout_(
-    VLayout(
+	VLayout(
 		HLayout( t )
-    )
+	)
 );
 
 w.view.keyDownAction = {
@@ -115,8 +115,73 @@ w.front;
 MIDIClient.init;
 MIDIIn.connectAll;
 
-MIDIIn.doControlAction(1, 1, 64, 127); // spoof a cc, useful for using numpad
+MIDIdef.freeAll;
+(0..7).do({ |index|
+	MIDIdef.cc("fader_%".format(index).asSymbol, {|val, num|
+		~midiFaders[index].set(val.linlin(0, 127, 1, 2).log2);
+	}, index).permanent_(true);
+});
+(16..23).do({ |index|
+	MIDIdef.cc("knob_%".format(index).asSymbol, {|val, num|
+		~midiKnobs[index%8].set(val.linlin(0, 127, 0, 1));
+	}, index).permanent_(true);
+});
+(32..39).do({ |index|
+	MIDIdef.cc("sbutton_%".format(index).asSymbol, {|val, num|
+		var res;
+		res = if(val==127, {1}, {0});
+		~midiSbutton[index%8].set(res);
+	}, index).permanent_(true);
+});
+(48..55).do({ |index|
+	MIDIdef.cc("mbutton_%".format(index).asSymbol, {|val, num|
+		var res;
+		res = if(val==127, {1}, {0});
+		~midiMbutton[index%8].set(res);
+	}, index).permanent_(true);
+});
+(64..71).do({ |index|
+	MIDIdef.cc("rbutton_%".format(index).asSymbol, {|val, num|
+		var res;
+		res = if(val==127, {1}, {0});
+		~midiRbutton[index%8].set(res);
+	}, index).permanent_(true);
+});
+(40..44).do({ |index|
+	MIDIdef.cc("sbutton_%".format(index).asSymbol, {|val, num|
+		var res;
+		res = if(val==127, {1}, {0});
+		~midiTPbutton[index%8].set(res);
+	}, index).permanent_(true);
+});
 
+MIDIdef.cc(\textureSwitch, { |val|
+	var synth;
+	val.postln;
+	if (val==127, {~karplusText = Synth(\karplusL, [\midinote, 48, \bufnum, ~samples[1][1][1], \length, 80000, \out, ~peaveyBus]);}, {~karplusText.set(\gate, 0)});
+}, 37);
+
+
+// triggers
+
+a = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val * 1;}).collect({|val| val + 40;});
+
+Pdefn(\notes, Prand(a, inf));
+
+
+Pdef(\morgan, Pbind(\instrument, \gatesampler, \midinote, Pdefn(\notes), \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
+
+Pdef(\quart, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) - 7, \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
+
+Pdef(\eight, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) , \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
+
+Pdef(\sixt, Pbind(\instrument, \gatesampler, \midinote, Pseq([Pwhite(43,60,1), 40, 40, 40, 40, 40, 40], inf) + 12 , \dur, inf, \amp, Phprand(0.8,0.4, inf), \out, ~peaveyBus));
+
+~morganPat= Pdef(\morgan).asStream;
+
+~quart = Pdef(\quart).asStream;
+~eight = Pdef(\eight).asStream;
+~sixt = Pdef(\sixt).asStream;
 
 // boot routine
 
@@ -157,12 +222,12 @@ s.waitForBoot({
 		buf = Select.kr((Rand(0,9) + Rand(0,3)) % 10, Select.kr(In.kr(~midiTPbutton[1]) + In.kr(~midiTPbutton[2]), Select.kr(In.kr(~midiTPbutton[0]).linlin(0,1,1,0),~samples)));
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, doneAction: Done.freeSelf);
 		sig = sig * Env.perc(0, (dur + 0.1), curve: -0.5)
-.kr(doneAction: Done.freeSelf);
+		.kr(doneAction: Done.freeSelf);
 		sig = sig * amp;
 		Out.ar(out,sig);
 	}).add;
 
-		SynthDef.new(\gatesampler, {
+	SynthDef.new(\gatesampler, {
 		arg amp=1, out=0, open=1, midinote=60, dur=5.5, gate=1;
 		var sig, buf, rate;
 		rate = (midinote-43).midiratio * In.kr(~midiFaders[1]).linlin(0,1,1,2) * In.kr(~midiKnobs[1]).linlin(0,1,1,0.5);
@@ -186,7 +251,7 @@ s.waitForBoot({
 		Out.ar(out,sig);
 	}).add;
 
-		SynthDef.new(\tSamplerPad, {
+	SynthDef.new(\tSamplerPad, {
 		arg trigIn=0, amp=1, out=~peaveyBus, open=1, midinote=60, dur=5.5;
 		var sig, buf, rate, trig, rand;
 		trig = KeyState.kr(trigIn, 0, 1, 0);
@@ -199,7 +264,7 @@ s.waitForBoot({
 		Out.ar(out,sig);
 	}).add;
 
-			SynthDef.new(\tSamplerKarp, {
+	SynthDef.new(\tSamplerKarp, {
 		arg trigIn=0, amp=1, out=~peaveyBus, open=1, midinote=60, dur=5.5;
 		var sig, buf, rate, trig, rand, local;
 		trig = KeyState.kr(trigIn, 0, 1, 0);
@@ -209,7 +274,7 @@ s.waitForBoot({
 		sig = PlayBuf.ar(1, buf, BufRateScale.kr(buf) * rate, startPos: 100, loop: 0, trigger: trig);
 		sig = sig * EnvGen.kr(Env.asr(0.01,1,0.25), gate: trig);
 		local = LocalIn.ar(1);
-		sig = LPF.ar((0.98 * DelayC.ar(local, 10, (In.kr(~midiFaders[5]).linexp(0,1,1,50) + In.kr(~midiKnobs[5]).linlin(0,1,0,2.5)) / (2 * midinote.midicps))) + sig, 1000);
+		sig = LPF.ar((0.95 * DelayC.ar(local, 10, (In.kr(~midiFaders[5]).linexp(0,1,1,50) + In.kr(~midiKnobs[5]).linlin(0,1,0,2.5)) / (2 * midinote.midicps))) + sig, 1000);
 		LocalOut.ar(sig);
 		sig = sig * amp;
 		Out.ar(out,sig);
@@ -248,7 +313,7 @@ s.waitForBoot({
 		Out.ar(out, (sig))
 	}).add;
 
-		SynthDef(\karplusL, {
+	SynthDef(\karplusL, {
 		arg out=0, bufnum=0, length=10000, midinote=40, vol=1, devo=0, ratio = 1, gate=1;
 		var rate, sig, sigA, sigX, sigY, phasor1, phasor2, env1, env2, deviation, trig,local;
 		rate = (midinote-43).midiratio;
@@ -300,15 +365,52 @@ s.waitForBoot({
 		Out.ar(out, IFFT(chain));
 	}).add;
 
+	SynthDef(\triggerer, {
+		var trigger;
+		trigger = Gate.ar(SoundIn.ar(~morganIn), In.kr(~midiSbutton[3]));
+		trigger = FFT(LocalBuf(64),trigger);
+		trigger = Onsets.kr(trigger, In.kr(~midiFaders[3]).linlin(0,1,3,0), \rcomplex);
+		SendReply.kr(
+			trigger,
+			cmdName: '/tLow',
+			values: [trigger],
+			replyID: 1
+		);
+		Out.kr(~triggerBus, trigger);
+	}).add;
+
+	SynthDef(\beatTracker, {
+		var chain, quart, eight, sixt, tempo;
+		chain = FFT(LocalBuf(512), SoundIn.ar(~morganIn));
+		#quart, eight, sixt, tempo = BeatTrack.kr(chain, 0);
+		quart = quart * In.kr(~midiSbutton[2]);
+		eight = eight * In.kr(~midiMbutton[2]);
+		sixt = sixt * In.kr(~midiRbutton[2]);
+		SendReply.kr(
+			quart,
+			cmdName: '/quart',
+			values: [quart],
+			replyID: 2
+		);
+		Out.kr(~triggerQuart, quart);
+		SendReply.kr(
+			eight,
+			cmdName: '/eight',
+			values: [eight],
+			replyID: 3
+		);
+		Out.kr(~triggerEight, eight);
+		SendReply.kr(
+			sixt,
+			cmdName: '/sixt',
+			values: [sixt],
+			replyID: 4
+		);
+		Out.kr(~triggerSixt, sixt);
+	}).add;
+
 	s.sync;
 
-	~numPad = Array.new(20);
-
-	~numPadScale = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val + 36;});
-	~keyOrder.do({arg val, index;
-		~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \out, ~peaveyBus
-		])
-	)});
 
 	// add groups
 	~makeNodes = {
@@ -323,11 +425,46 @@ s.waitForBoot({
 		~ggroup = Group.after(~srcgroup);
 		~g = Synth(\peavey, [\in, ~peaveyBus, \out, ~lMaxBus], ~ggroup);
 		// outputs here can be dynamically set during part changes -> ~g.set(\out, 0) etc.
+
+		~triggerGroup = Group.after(~srcgroup);
+		~tMorg = Synth(\triggerer, target: ~triggerGroup);
+		~tBeat = Synth(\beatTracker, target: ~triggerGroup);
+		~numPadGroup = Group.new;
 	};
 
 	// redo groups when hitting cmd .
 	ServerTree.add(~makeNodes);
 	ServerTree.run;
 
-})
+	s.sync;
+
+	~numPad = Array.new(20);
+	~numPadScale = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val * 1;}).collect({|val| val + 48;});
+
+	~keyOrder.do({arg val, index;
+		~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \target, ~numPadGroup, \out, ~peaveyBus
+	]);)});
+
+	MIDIdef.cc(\numPadMode, { |val|
+		if (val==0, {
+			~numPad.do({|synth| synth.free;});
+			~numPad = Array.new(20);
+
+			~keyOrder.do({arg val, index;
+				~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index],\target, ~numPadGroup, \out, ~peaveyBus
+				]);
+			)});
+		}, {
+			~numPad.do({|synth| synth.free;});
+			~numPad = Array.new(20);
+
+			~keyOrder.do({arg val, index;
+				~numPad.add(Synth(\tSamplerKarp, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \target, ~numPadGroup, \out, ~lMaxBus
+				]);
+			)});
+		})
+}, 33);});
+
+MIDIIn.doControlAction(num: 33, val:0);
+
 )
