@@ -331,7 +331,7 @@ s.waitForBoot({
 		sig = LPF.ar((0.975 * DelayC.ar(local, 10, (In.kr(~midiFaders[5]).linexp(0,1,1,50) + In.kr(~midiKnobs[5]).linlin(0,1,0,2)) / (2 * midinote.midicps))) + sig, 4000);
 		LocalOut.ar(sig);
 		sig = EnvGen.kr(Env.asr, gate, doneAction: Done.freeSelf) * sig;
-		Out.ar(out, (sig))
+		Out.ar(out, sig)
 	}).add;
 
 	// add synth defs for FX
@@ -441,30 +441,23 @@ s.waitForBoot({
 	~numPad = Array.new(20);
 	~numPadScale = [ 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24 ].collect({|val| val * 1;}).collect({|val| val + 48;});
 
-	~keyOrder.do({arg val, index;
-		~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \target, ~numPadGroup, \out, ~peaveyBus
-	]);)});
-
 	MIDIdef.cc(\numPadMode, { |val|
 		if (val==0, {
 			~numPad.do({|synth| synth.free;});
 			~numPad = Array.new(20);
 
 			~keyOrder.do({arg val, index;
-				~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index],\target, ~numPadGroup, \out, ~peaveyBus
-				]);
+				~numPad.add(Synth(\tSamplerPad, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \out, ~peaveyBus], ~numPadGroup);
 			)});
 		}, {
 			~numPad.do({|synth| synth.free;});
 			~numPad = Array.new(20);
 
 			~keyOrder.do({arg val, index;
-				~numPad.add(Synth(\tSamplerKarp, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \target, ~numPadGroup, \out, ~lMaxBus
-				]);
-			)});
-		})
-}, 33);});
+				~numPad.add(Synth(\tSamplerKarp, [\trigIn, ~keys[val], \midinote, ~numPadScale[index], \out, ~lMaxBus], ~numPadGroup);)});})
+	}, 33);
 
-MIDIIn.doControlAction(num: 33, val:0);
 
-)
+	MIDIIn.doControlAction(num: 33, val:1);
+
+}))
